@@ -1,18 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:gravity="fill_vertical"
+    android:orientation="vertical"
+    android:padding="50dp">
 
     <TextView
-        android:layout_width="wrap_content"
+        android:id="@+id/fullerLabsText"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="@string/fuller_labs_geofence" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <TextView
+        android:id="@+id/libraryText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/library_geofence" />
+
+    <TextView
+        android:id="@+id/stepsText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/steps_taken" />
+
+    <TextView
+        android:id="@+id/addressText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/address" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="548dp"
+        android:orientation="vertical">
+
+        <com.google.android.gms.maps.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="248dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:id="@+id/activityImage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:contentDescription="@string/activity_image_description"
+            android:scaleType="fitCenter"
+            app:srcCompat="@drawable/still" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/activityDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/activity_description" />
+
+</LinearLayout>
