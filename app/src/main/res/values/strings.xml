@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">cs528project3</string>
+    <string name="fuller_labs_geofence">Visits to Fuller Labs geoFence: %d</string>
+    <string name="library_geofence">Visits to Library geoFence: %d</string>
+    <string name="steps_taken">Steps taken since app started: %d</string>
+    <string name="address">Address %s</string>
+    <string name="activity_description">You are %s</string>
+
+    <string name="activity_image_description">Image showing an illustration of the current activity</string>
 </resources>
