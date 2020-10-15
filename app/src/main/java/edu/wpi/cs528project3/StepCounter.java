@@ -1,5 +1,6 @@
 package edu.wpi.cs528project3;
 
+import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -34,6 +35,15 @@ public class StepCounter implements SensorEventListener {
     double stepThreshold = 1.0d;
     double noiseThreshold = 2d;
     private int windowSize = 10;
+
+    public StepCounter(SensorManager sensorManager){
+        mSensorManager = sensorManager;
+        mSensorCount = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+        mSensorAcc = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        mSensorManager.registerListener(this, mSensorCount, SensorManager.SENSOR_DELAY_UI);
+        mSensorManager.registerListener(this, mSensorAcc, SensorManager.SENSOR_DELAY_UI);
+    }
+
     @Override
     public void onSensorChanged(SensorEvent event) {
 
