@@ -1,27 +1,27 @@
 package edu.wpi.cs528project3;
 
-import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.FragmentActivity;
-
 import android.Manifest;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Looper;
-import android.util.Log;
-import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import androidx.core.app.ActivityCompat;
+import androidx.fragment.app.FragmentActivity;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Geofence;
-import com.google.android.gms.location.GeofenceStatusCodes;
 import com.google.android.gms.location.GeofencingClient;
-import com.google.android.gms.location.GeofencingEvent;
 import com.google.android.gms.location.GeofencingRequest;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -32,7 +32,6 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.List;
@@ -53,15 +52,9 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     private final float defaultZoom = 16;
     private final float geofenceRadius = 30;
-//    private final int dwellTime = 15000;
-    private final int dwellTime = 1000;
-
-    private int fullerVisits = 0;
-    private int libraryVisits = 0;
-    private final String fullerKey = "fuller";
-    private final String libraryKey = "library";
-
-    private final String geofenceToast = "You have been inside the %s Geofence for 15 seconds, incrementing counter";
+    private final int dwellTime = 15000;
+    private BroadcastReceiver geofenceUpdateReceiver;
+    private Geocoder geoCoder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -109,7 +102,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         Geofence fuller = new Geofence.Builder()
                 // Set the request ID of the geofence. This is a string to identify this
                 // geofence.
-                .setRequestId(fullerKey)
+                .setRequestId(getResources().getString(R.string.fuller))
 
                 .setCircularRegion(
                         fullerCoords.latitude,
@@ -121,10 +114,10 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
                 .build();
 
+        geoCoder = new Geocoder(getApplicationContext());
+
         Geofence library = new Geofence.Builder()
-                // Set the request ID of the geofence. This is a string to identify this
-                // geofence.
-                .setRequestId(libraryKey)
+                .setRequestId(getResources().getString(R.string.library))
 
                 .setCircularRegion(
                         libraryCoords.latitude,
@@ -138,9 +131,27 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
         geofencingClient.addGeofences(getGeofencingRequest(fuller, library), getGeofencePendingIntent());
 
+        geofenceUpdateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                updateGeofencesUI();
+            }
+        };
+
+        registerReceiver(geofenceUpdateReceiver, new IntentFilter("GEOFENCE_UPDATE"));
+
     }
 
-    private void updateGeofencesUI() {
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(geofenceUpdateReceiver);
+    }
+
+    public void updateGeofencesUI() {
+        SharedPreferences prefs = getSharedPreferences(getResources().getString(R.string.geofence_prefs_file), MODE_PRIVATE);
+        int fullerVisits = prefs.getInt(getResources().getString(R.string.fuller_visits), 0);
+        int libraryVisits = prefs.getInt(getResources().getString(R.string.library_visits), 0);
         TextView fullerText = findViewById(R.id.fullerLabsText);
         TextView libraryText = findViewById(R.id.libraryText);
         fullerText.setText(String.format(getResources().getString(R.string.fuller_labs_geofence), fullerVisits));
@@ -168,7 +179,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         return builder.build();
     }
 
-
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -181,11 +191,9 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.getUiSettings().setZoomGesturesEnabled(false);
+        mMap.getUiSettings().setScrollGesturesEnabled(false);
 
-        String locationProvider = LocationManager.NETWORK_PROVIDER;
-        // Add a marker in Sydney and move the camera
-//        LatLng sydney = new LatLng(-34, 151);
-//        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         if (mCurrentLocation != null) {
             updateMap(mCurrentLocation);
         } else {
@@ -196,12 +204,30 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     private void updateMap(Location location) {
         LatLng curLocation = new LatLng(location.getLatitude(), location.getLongitude());
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(curLocation, defaultZoom));
+        String bestMatch = "";
+        try {
+            List<Address> matches = geoCoder.getFromLocation(curLocation.latitude, curLocation.longitude, 1);
+            bestMatch = (matches.isEmpty() ? "Unknown" : matches.get(0).getAddressLine(0));
+        } catch (Exception e) {
+            bestMatch = "Unknown";
+        }
+        TextView addressText = findViewById(R.id.addressText);
+        addressText.setText(String.format(getResources().getString(R.string.address), bestMatch));
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         startLocationUpdates();
+        // use shared preferences for saving fuller/library visits
+        SharedPreferences prefs = getSharedPreferences(getResources().getString(R.string.geofence_prefs_file), MODE_PRIVATE);
+        int fullerVisits = prefs.getInt(getResources().getString(R.string.fuller_visits), 0);
+        int libraryVisits = prefs.getInt(getResources().getString(R.string.library_visits), 0);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putInt(getResources().getString(R.string.fuller_visits), fullerVisits);
+        editor.putInt(getResources().getString(R.string.library_visits), libraryVisits);
+        editor.apply();
         updateGeofencesUI();
     }
 
@@ -219,41 +245,5 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback,
                 Looper.getMainLooper());
     }
-
-    public class GeofenceBroadcastReceiver extends BroadcastReceiver {
-        // ...
-        public void onReceive(Context context, Intent intent) {
-            GeofencingEvent geofencingEvent = GeofencingEvent.fromIntent(intent);
-            if (geofencingEvent.hasError()) {
-//                String errorMessage = GeofenceStatusCodes.getErrorString(geofencingEvent.getErrorCode());
-//                Log.e("geofenceBroadcastReceiver", errorMessage);
-                return;
-            }
-
-            // Get the transition type.
-            int geofenceTransition = geofencingEvent.getGeofenceTransition();
-
-            // Test that the reported transition was of interest.
-            if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_DWELL) {
-
-                // Get the geofences that were triggered. A single event can trigger
-                // multiple geofences.
-                List<Geofence> triggeringGeofences = geofencingEvent.getTriggeringGeofences();
-                for (Geofence fence : triggeringGeofences) {
-                    if (fence.getRequestId().equals(fullerKey)) {
-                        Toast.makeText(context, String.format(geofenceToast, "Fuller"), Toast.LENGTH_LONG).show();
-                        fullerVisits += 1;
-                        updateGeofencesUI();
-                    } else {
-                        Toast.makeText(context, String.format(geofenceToast, "Gordon Library"), Toast.LENGTH_LONG).show();
-                        libraryVisits += 1;
-                        updateGeofencesUI();
-                    }
-                }
-
-            }
-        }
-    }
-
 
 }

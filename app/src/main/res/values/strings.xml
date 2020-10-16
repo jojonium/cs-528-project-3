@@ -7,4 +7,12 @@
     <string name="activity_description">You are %s</string>
 
     <string name="activity_image_description">Image showing an illustration of the current activity</string>
+
+    <string name="fuller_visits">fuller_visits</string>
+    <string name="library_visits">library_visits</string>
+    <string name="geofence_prefs_file">GEOFENCE_PREFS</string>
+
+    <string name="fuller">fuller</string>
+    <string name="library">library</string>
+    <string name="geofence_toast">You have been inside the %s Geofence for 15 seconds, incrementing counter</string>
 </resources>
