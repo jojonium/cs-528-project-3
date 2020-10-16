@@ -28,7 +28,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private Location mCurrentLocation;
     private FusedLocationProviderClient fusedLocationClient;
-    private final LocationRequest locationRequest = LocationRequest.create();
+    private final LocationRequest locationRequest = LocationRequest.create().setInterval(1000).setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     private LocationCallback locationCallback;
     private final LatLng defaultLocation = new LatLng(42.273762, -71.809470);
     private final float defaultZoom = 16;
