@@ -43,8 +43,9 @@
         app:layout_constraintTop_toBottomOf="@id/stepsText" />
 
 
-    <com.google.android.gms.maps.MapView
-        android:id="@+id/mapView"
+    <fragment
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@+id/activityImage"
@@ -64,7 +65,7 @@
         app:layout_constraintBottom_toTopOf="@id/activityDescription"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/mapView"
+        app:layout_constraintTop_toBottomOf="@id/map"
         app:srcCompat="@drawable/still" />
 
 
