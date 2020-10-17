@@ -18,7 +18,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public class StepCounter implements SensorEventListener {
-    private static int SMOOTHING_WINDOW_SIZE = 20;
+    private static int SMOOTHING_WINDOW_SIZE = 10;
 
     private static SensorManager mSensorManager;
     private static TextView stepsTextView;
@@ -34,13 +34,8 @@ public class StepCounter implements SensorEventListener {
     private int mCurReadIndex = 0;
 
     public static float mStepCounter = 0;
-    public static float mStepCounterAndroid = 0;
-    public static float mInitialStepCount = 0;
 
-    private double mGraph1LastXValue = 0d;
     private double mGraph2LastXValue = 0d;
-
-    private LineGraphSeries<DataPoint> mSeries1;
     private LineGraphSeries<DataPoint> mSeries2;
 
     private double lastMag = 0d;
@@ -64,16 +59,17 @@ public class StepCounter implements SensorEventListener {
 
         mSeries2 = new LineGraphSeries<>();
 
+        stepsTextView.setText(String.format(stepsTextPat, (int) mStepCounter));
+
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
-    public void onSensorChanged(SensorEvent e) {
-        switch (e.sensor.getType()) {
+    public void onSensorChanged(SensorEvent event) {
+        switch (event.sensor.getType()) {
             case Sensor.TYPE_ACCELEROMETER:
-                mRawAccelValues[0] = e.values[0];
-                mRawAccelValues[1] = e.values[1];
-                mRawAccelValues[2] = e.values[2];
+                mRawAccelValues[0] = event.values[0];
+                mRawAccelValues[1] = event.values[1];
+                mRawAccelValues[2] = event.values[2];
 
                 lastMag = Math.sqrt(Math.pow(mRawAccelValues[0], 2) + Math.pow(mRawAccelValues[1], 2) + Math.pow(mRawAccelValues[2], 2));
 
@@ -93,10 +89,6 @@ public class StepCounter implements SensorEventListener {
 
                 netMag = lastMag - avgMag; //removes gravity effect
 
-//                //update graph data points
-//                mGraph1LastXValue += 1d;
-//                mSeries1.appendData(new DataPoint(mGraph1LastXValue, lastMag), true, 60);
-
                 mGraph2LastXValue += 1d;
                 mSeries2.appendData(new DataPoint(mGraph2LastXValue, netMag), true, 60);
         }
@@ -111,7 +103,6 @@ public class StepCounter implements SensorEventListener {
 
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     public void peakDetection() {
         double highestValX = mSeries2.getHighestValueX();
 
@@ -127,7 +118,10 @@ public class StepCounter implements SensorEventListener {
         double downwardSlope = 0d;
 
         List<DataPoint> dataPointList = new ArrayList<DataPoint>();
-        valuesInWindow.forEachRemaining(dataPointList::add); //This requires API 24 or higher
+        while (valuesInWindow.hasNext()){
+            dataPointList.add(valuesInWindow.next());
+        }
+
 
         for (int i = 0; i < dataPointList.size(); i++) {
             if (i == 0) continue;
