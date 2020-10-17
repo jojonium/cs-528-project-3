@@ -7,4 +7,19 @@
     <string name="activity_description">You are %s</string>
 
     <string name="activity_image_description">Image showing an illustration of the current activity</string>
+
+    <string name="fuller_visits">fuller_visits</string>
+    <string name="library_visits">library_visits</string>
+    <string name="geofence_prefs_file">GEOFENCE_PREFS</string>
+
+    <string name="fuller">fuller</string>
+    <string name="library">library</string>
+    <string name="geofence_toast">You have been inside the %s Geofence for 15 seconds, incrementing counter</string>
+
+    <string name="location_permission_required">Location permission required for app</string>
+    <string name="location_permission_rationale">Location permission required for map and geofence features to function.</string>
+    <string name="location_permission_denied">Location permission denied. Location features disabled.</string>
+
+    <string name="background_location_required">Background location permission required for geofences</string>
+    <string name="background_location_rationale">Your background location is required for geofencing to work properly. To enable background location access, please select \"Allow all the time\" in the app location settings.</string>
 </resources>
