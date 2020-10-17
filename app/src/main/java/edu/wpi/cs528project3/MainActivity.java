@@ -81,8 +81,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.activity_main);
 
         // create step counter
+        TextView textStepsCounter = (TextView) this.findViewById(R.id.stepsText);
         SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        sc = new StepCounter(sensorManager);
+        String textPattern = getResources().getString(R.string.steps_taken);
+        sc = new StepCounter(sensorManager, textStepsCounter, textPattern);
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
