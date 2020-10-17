@@ -15,11 +15,13 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.widget.TextView;
+import android.hardware.SensorManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Geofence;
@@ -39,6 +41,8 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
+
+    private StepCounter sc;
 
     private GoogleMap mMap;
     private Location mCurrentLocation;
@@ -71,11 +75,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE,
             ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE};
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // create step counter
+        TextView textStepsCounter = (TextView) this.findViewById(R.id.stepsText);
+        SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        String textPattern = getResources().getString(R.string.steps_taken);
+        sc = new StepCounter(sensorManager, textStepsCounter, textPattern);
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -134,6 +144,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         builder.addGeofence(g1);
         builder.addGeofence(g2);
         return builder.build();
+
     }
 
     private void enableForegroundLocationFeatures(int requestCode) {
