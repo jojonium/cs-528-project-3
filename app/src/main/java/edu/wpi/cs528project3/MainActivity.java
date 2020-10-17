@@ -11,13 +11,15 @@ import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Geofence;
@@ -36,7 +38,7 @@ import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.List;
 
-public class MainActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private Location mCurrentLocation;
@@ -56,6 +58,20 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     private BroadcastReceiver geofenceUpdateReceiver;
     private Geocoder geoCoder;
 
+    private boolean locationPermissionDenied = false;
+
+    private final int GET_LAST_LOCATION_PERMISSION_REQUEST_CODE = 1;
+    private final int ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE = 2;
+    private final int START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE = 3;
+    private final int ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE = 4;
+    private final int ENABLE_GEOFENCES_BACKGROUND_PERMISSION_REQUEST_CODE = 5;
+
+    private final int[] LOCATION_REQUEST_CODES = {GET_LAST_LOCATION_PERMISSION_REQUEST_CODE,
+            ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE,
+            START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE,
+            ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE};
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,31 +79,14 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         geofencingClient = LocationServices.getGeofencingClient(this);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations this can be null.
-                        if (location != null) {
-                            // Logic to handle location object
-                            mCurrentLocation = location;
-                        }
-                    }
-                });
-
+        enableForegroundLocationFeatures(GET_LAST_LOCATION_PERMISSION_REQUEST_CODE);
+        geoCoder = new Geocoder(getApplicationContext());
+        enableForegroundLocationFeatures(ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE);
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
@@ -98,48 +97,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 updateMap(mCurrentLocation);
             }
         };
-
-        Geofence fuller = new Geofence.Builder()
-                // Set the request ID of the geofence. This is a string to identify this
-                // geofence.
-                .setRequestId(getResources().getString(R.string.fuller))
-
-                .setCircularRegion(
-                        fullerCoords.latitude,
-                        fullerCoords.longitude,
-                        geofenceRadius
-                )
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setLoiteringDelay(dwellTime)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
-                .build();
-
-        geoCoder = new Geocoder(getApplicationContext());
-
-        Geofence library = new Geofence.Builder()
-                .setRequestId(getResources().getString(R.string.library))
-
-                .setCircularRegion(
-                        libraryCoords.latitude,
-                        libraryCoords.longitude,
-                        geofenceRadius
-                )
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setLoiteringDelay(dwellTime)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
-                .build();
-
-        geofencingClient.addGeofences(getGeofencingRequest(fuller, library), getGeofencePendingIntent());
-
-        geofenceUpdateReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                updateGeofencesUI();
-            }
-        };
-
-        registerReceiver(geofenceUpdateReceiver, new IntentFilter("GEOFENCE_UPDATE"));
-
     }
 
     @Override
@@ -179,6 +136,156 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         return builder.build();
     }
 
+    private void enableForegroundLocationFeatures(int requestCode) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= 23) {
+                PermissionUtils.requestPermission(this, requestCode,
+                        Manifest.permission.ACCESS_FINE_LOCATION, false,
+                        R.string.location_permission_required,
+                        R.string.location_permission_rationale);
+            }
+        } else {
+            if (requestCode == ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE) {
+                mMap.setMyLocationEnabled(true);
+                mMap.getUiSettings().setMyLocationButtonEnabled(false);
+            } else if (requestCode == START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE) {
+                fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback,
+                        Looper.getMainLooper());
+            } else if (requestCode == GET_LAST_LOCATION_PERMISSION_REQUEST_CODE) {
+                fusedLocationClient.getLastLocation()
+                        .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                            @Override
+                            public void onSuccess(Location location) {
+                                // Got last known location. In some rare situations this can be null.
+                                if (location != null) {
+                                    // Logic to handle location object
+                                    mCurrentLocation = location;
+                                }
+                            }
+                        });
+            } else if (requestCode == ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE) {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    enableBackgroundLocationFeatures(ENABLE_GEOFENCES_BACKGROUND_PERMISSION_REQUEST_CODE);
+                } else {
+                    Geofence fuller = new Geofence.Builder()
+                            // Set the request ID of the geofence. This is a string to identify this
+                            // geofence.
+                            .setRequestId(getResources().getString(R.string.fuller))
+
+                            .setCircularRegion(
+                                    fullerCoords.latitude,
+                                    fullerCoords.longitude,
+                                    geofenceRadius
+                            )
+                            .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                            .setLoiteringDelay(dwellTime)
+                            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
+                            .build();
+
+                    Geofence library = new Geofence.Builder()
+                            .setRequestId(getResources().getString(R.string.library))
+
+                            .setCircularRegion(
+                                    libraryCoords.latitude,
+                                    libraryCoords.longitude,
+                                    geofenceRadius
+                            )
+                            .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                            .setLoiteringDelay(dwellTime)
+                            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
+                            .build();
+
+                    geofencingClient.addGeofences(getGeofencingRequest(fuller, library), getGeofencePendingIntent());
+
+                    geofenceUpdateReceiver = new BroadcastReceiver() {
+                        @Override
+                        public void onReceive(Context context, Intent intent) {
+                            updateGeofencesUI();
+                        }
+                    };
+                    registerReceiver(geofenceUpdateReceiver, new IntentFilter("GEOFENCE_UPDATE"));
+                }
+            }
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void enableBackgroundLocationFeatures(int requestCode) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT == 29) {
+                PermissionUtils.requestPermission(this, requestCode,
+                        Manifest.permission.ACCESS_BACKGROUND_LOCATION, false,
+                        R.string.background_location_required,
+                        R.string.location_permission_rationale);
+            } else if (Build.VERSION.SDK_INT == 30) {
+                PermissionUtils.requestPermission(this, requestCode,
+                        Manifest.permission.ACCESS_BACKGROUND_LOCATION, false,
+                        R.string.background_location_required,
+                        R.string.background_location_rationale);
+            }
+        } else {
+            Geofence fuller = new Geofence.Builder()
+                    // Set the request ID of the geofence. This is a string to identify this
+                    // geofence.
+                    .setRequestId(getResources().getString(R.string.fuller))
+
+                    .setCircularRegion(
+                            fullerCoords.latitude,
+                            fullerCoords.longitude,
+                            geofenceRadius
+                    )
+                    .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                    .setLoiteringDelay(dwellTime)
+                    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
+                    .build();
+
+            Geofence library = new Geofence.Builder()
+                    .setRequestId(getResources().getString(R.string.library))
+
+                    .setCircularRegion(
+                            libraryCoords.latitude,
+                            libraryCoords.longitude,
+                            geofenceRadius
+                    )
+                    .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                    .setLoiteringDelay(dwellTime)
+                    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
+                    .build();
+
+            geofencingClient.addGeofences(getGeofencingRequest(fuller, library), getGeofencePendingIntent());
+            geofenceUpdateReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    updateGeofencesUI();
+                }
+            };
+            registerReceiver(geofenceUpdateReceiver, new IntentFilter("GEOFENCE_UPDATE"));
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE ||
+                requestCode == START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE ||
+                requestCode == GET_LAST_LOCATION_PERMISSION_REQUEST_CODE ||
+                requestCode == ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE) {
+            if (PermissionUtils.isPermissionGranted(permissions, grantResults, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                for (int request : LOCATION_REQUEST_CODES) {
+                    enableForegroundLocationFeatures(request);
+                }
+            }
+//            else {
+//                locationPermissionDenied = true;
+//            }
+        } else if (requestCode == ENABLE_GEOFENCES_BACKGROUND_PERMISSION_REQUEST_CODE) {
+            if (PermissionUtils.isPermissionGranted(permissions, grantResults, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    enableBackgroundLocationFeatures(requestCode);
+                }
+            }
+        }
+    }
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -191,6 +298,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        enableForegroundLocationFeatures(ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE);
         mMap.getUiSettings().setZoomGesturesEnabled(false);
         mMap.getUiSettings().setScrollGesturesEnabled(false);
 
@@ -213,7 +321,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         }
         TextView addressText = findViewById(R.id.addressText);
         addressText.setText(String.format(getResources().getString(R.string.address), bestMatch));
-
     }
 
     @Override
@@ -231,19 +338,21 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         updateGeofencesUI();
     }
 
-    private void startLocationUpdates() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
+    @Override
+    protected void onResumeFragments() {
+        super.onResumeFragments();
+        if (locationPermissionDenied) {
+            // Permission was not granted, display error dialog.
+            PermissionUtils.PermissionDeniedDialog
+                    .newInstance(false, R.string.location_permission_denied,
+                            R.string.location_permission_required)
+                    .show(getSupportFragmentManager(), "dialog");
+            locationPermissionDenied = false;
         }
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback,
-                Looper.getMainLooper());
+    }
+
+    private void startLocationUpdates() {
+        enableForegroundLocationFeatures(START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE);
     }
 
 }
