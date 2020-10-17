@@ -4,18 +4,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.Build;
+
 import android.widget.TextView;
 
-
-import androidx.annotation.RequiresApi;
-
-import com.jjoe64.graphview.series.DataPoint;
-import com.jjoe64.graphview.series.LineGraphSeries;
-
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
 public class StepCounter implements SensorEventListener {
     private static int SMOOTHING_WINDOW_SIZE = 10;
@@ -33,19 +25,16 @@ public class StepCounter implements SensorEventListener {
     private float mCurAccelAvg[] = new float[3];
     private int mCurReadIndex = 0;
 
-    public static float mStepCounter = 0;
+    public static int mStepCounter = 0;
 
-    private double mGraph2LastXValue = 0d;
-    private LineGraphSeries<DataPoint> mSeries2;
+    private ArrayList<Double> accelList;
 
-    private double lastMag = 0d;
-    private double avgMag = 0d;
-    private double netMag = 0d;
+    private double curMag = 0;
+    private double avgMag = 0;
 
     //peak detection variables
-    private double lastXPoint = 1d;
-    double stepThreshold = 1.0d;
-    double noiseThreshold = 2d;
+    private double stepThreshold = 1.0;
+    private double noiseThreshold = 2;
     private int windowSize = 10;
 
     public StepCounter(SensorManager sensorManager, TextView textView, String textPattern){
@@ -57,29 +46,30 @@ public class StepCounter implements SensorEventListener {
         mSensorManager.registerListener(this, mSensorCount, SensorManager.SENSOR_DELAY_UI);
         mSensorManager.registerListener(this, mSensorAcc, SensorManager.SENSOR_DELAY_UI);
 
-        mSeries2 = new LineGraphSeries<>();
+        accelList = new ArrayList<>();
 
         stepsTextView.setText(String.format(stepsTextPat, (int) mStepCounter));
-
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
         switch (event.sensor.getType()) {
             case Sensor.TYPE_ACCELEROMETER:
+                // Extract 3D vector https://web.cs.wpi.edu/~emmanuel/courses/cs528/F20/slides/papers/deepak_ganesan_pedometer.pdf
                 mRawAccelValues[0] = event.values[0];
                 mRawAccelValues[1] = event.values[1];
                 mRawAccelValues[2] = event.values[2];
 
-                lastMag = Math.sqrt(Math.pow(mRawAccelValues[0], 2) + Math.pow(mRawAccelValues[1], 2) + Math.pow(mRawAccelValues[2], 2));
+                curMag = Math.sqrt(Math.pow(mRawAccelValues[0], 2) + Math.pow(mRawAccelValues[1], 2) + Math.pow(mRawAccelValues[2], 2));
 
-                //Source: https://github.com/jonfroehlich/CSE590Sp2018
+                 // Smoothing
                 for (int i = 0; i < 3; i++) {
                     mRunningAccelTotal[i] = mRunningAccelTotal[i] - mAccelValueHistory[i][mCurReadIndex];
                     mAccelValueHistory[i][mCurReadIndex] = mRawAccelValues[i];
                     mRunningAccelTotal[i] = mRunningAccelTotal[i] + mAccelValueHistory[i][mCurReadIndex];
                     mCurAccelAvg[i] = mRunningAccelTotal[i] / SMOOTHING_WINDOW_SIZE;
                 }
+                System.out.println(mRunningAccelTotal);
                 mCurReadIndex++;
                 if(mCurReadIndex >= SMOOTHING_WINDOW_SIZE){
                     mCurReadIndex = 0;
@@ -87,15 +77,13 @@ public class StepCounter implements SensorEventListener {
 
                 avgMag = Math.sqrt(Math.pow(mCurAccelAvg[0], 2) + Math.pow(mCurAccelAvg[1], 2) + Math.pow(mCurAccelAvg[2], 2));
 
-                netMag = lastMag - avgMag; //removes gravity effect
-
-                mGraph2LastXValue += 1d;
-                mSeries2.appendData(new DataPoint(mGraph2LastXValue, netMag), true, 60);
+                accelList.add(new Double(curMag - avgMag)); // Apply smoothing and add to list
         }
 
-        peakDetection();
-
-        stepsTextView.setText(String.format(stepsTextPat, (int) mStepCounter));
+        if (accelList.size() >= windowSize) {
+            peakDetection();
+            stepsTextView.setText(String.format(stepsTextPat, (int) mStepCounter));
+        }
     }
 
     @Override
@@ -104,36 +92,19 @@ public class StepCounter implements SensorEventListener {
     }
 
     public void peakDetection() {
-        double highestValX = mSeries2.getHighestValueX();
+        double forwardSlope = 0;
+        double downwardSlope = 0;
 
-        if (highestValX - lastXPoint < windowSize) {
-            return;
-        }
+        for (int i = 1; i < accelList.size() - 1; i++) {
 
-        Iterator<DataPoint> valuesInWindow = mSeries2.getValues(lastXPoint, highestValX);
+            forwardSlope = accelList.get(i + 1) - accelList.get(i);
+            downwardSlope = accelList.get(i) - accelList.get(i - 1);
 
-        lastXPoint = highestValX;
-
-        double forwardSlope = 0d;
-        double downwardSlope = 0d;
-
-        List<DataPoint> dataPointList = new ArrayList<DataPoint>();
-        while (valuesInWindow.hasNext()){
-            dataPointList.add(valuesInWindow.next());
-        }
-
-
-        for (int i = 0; i < dataPointList.size(); i++) {
-            if (i == 0) continue;
-            else if (i < dataPointList.size() - 1) {
-                forwardSlope = dataPointList.get(i + 1).getY() - dataPointList.get(i).getY();
-                downwardSlope = dataPointList.get(i).getY() - dataPointList.get(i - 1).getY();
-
-                if (forwardSlope < 0 && downwardSlope > 0 && dataPointList.get(i).getY() > stepThreshold && dataPointList.get(i).getY() < noiseThreshold) {
-                    mStepCounter += 1;
-                }
+            if (forwardSlope < 0 && downwardSlope > 0 && accelList.get(i) > stepThreshold && accelList.get(i) < noiseThreshold) {
+                mStepCounter += 1;
             }
         }
+        accelList = new ArrayList<>();
     }
 
 }
