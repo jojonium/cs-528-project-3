@@ -11,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
@@ -68,6 +69,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private BroadcastReceiver geofenceUpdateReceiver;
     private Geocoder geoCoder;
     private boolean locationPermissionDenied = false;
+    MediaPlayer mediaPlayer;
 
     private final int GET_LAST_LOCATION_PERMISSION_REQUEST_CODE = 1;
     private final int ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE = 2;
@@ -104,6 +106,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
+        mediaPlayer = MediaPlayer.create(getApplicationContext(), R.raw.beat_02);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         geofencingClient = LocationServices.getGeofencingClient(this);
         enableForegroundLocationFeatures(GET_LAST_LOCATION_PERMISSION_REQUEST_CODE);
@@ -143,22 +146,29 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void handleUserActivity(int type, int confidence) {
         String label = "You are not still, walking, running, or in a car";
+        Integer image = 0;
 
         switch (type) {
             case DetectedActivity.IN_VEHICLE: {
                 label = "You are in a vehicle";
+                image = R.drawable.in_vehicle;
                 break;
             }
             case DetectedActivity.RUNNING: {
                 label = "You are running";
+                image = R.drawable.running;
+                mediaPlayer.start();
                 break;
             }
             case DetectedActivity.STILL: {
                 label = "You are still";
+                image = R.drawable.still;
                 break;
             }
             case DetectedActivity.WALKING: {
                 label = "You are walking";
+                image = R.drawable.walking;
+                mediaPlayer.start();
                 break;
             }
             default:
@@ -167,6 +177,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         if (confidence > Constants.CONFIDENCE) {
             txtActivity.setText(label);
+            imgActivity.setImageResource(image);
         }
     }
 
@@ -430,6 +441,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onPause();
 
         LocalBroadcastManager.getInstance(this).unregisterReceiver(activityUpdateReceiver);
+        mediaPlayer.stop();
+        mediaPlayer.release();
     }
 
     private void startTracking() {
