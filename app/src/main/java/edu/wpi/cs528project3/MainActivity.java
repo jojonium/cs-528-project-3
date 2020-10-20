@@ -14,6 +14,7 @@ import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.hardware.SensorManager;
 
@@ -21,8 +22,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 
+import com.google.android.gms.location.DetectedActivity;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingClient;
@@ -42,6 +45,8 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
+    private String TAG = MainActivity.class.getSimpleName();
+
     private StepCounter sc;
 
     private GoogleMap mMap;
@@ -59,9 +64,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private final float defaultZoom = 16;
     private final float geofenceRadius = 30;
     private final int dwellTime = 15000;
+    private BroadcastReceiver activityUpdateReceiver;
     private BroadcastReceiver geofenceUpdateReceiver;
     private Geocoder geoCoder;
-
     private boolean locationPermissionDenied = false;
 
     private final int GET_LAST_LOCATION_PERMISSION_REQUEST_CODE = 1;
@@ -75,6 +80,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE,
             ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE};
 
+    private TextView txtActivity;
+    private ImageView imgActivity;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -85,6 +93,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         String textPattern = getResources().getString(R.string.steps_taken);
         sc = new StepCounter(sensorManager, textStepsCounter, textPattern);
+
+        txtActivity = findViewById(R.id.activityDescription);
+        imgActivity = findViewById(R.id.activityImage);
+
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -107,6 +119,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 updateMap(mCurrentLocation);
             }
         };
+
+        activityUpdateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getAction().equals(Constants.BROADCAST_DETECTED_ACTIVITY)){
+                    int type = intent.getIntExtra("type", -1);
+                    int confidence = intent.getIntExtra("confidence", 0);
+                    handleUserActivity(type, confidence);
+                }
+            }
+        };
+
+        startTracking();
+
     }
 
     @Override
@@ -114,6 +140,34 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onDestroy();
         unregisterReceiver(geofenceUpdateReceiver);
     }
+
+    private void handleUserActivity(int type, int confidence) {
+        String label = getString(R.string.activity_description);
+
+        switch (type) {
+            case DetectedActivity.IN_VEHICLE: {
+                txtActivity.setText(String.format(label, "In a vehicle"));
+                break;
+            }
+            case DetectedActivity.RUNNING: {
+                txtActivity.setText(String.format(label, "running."));
+                break;
+            }
+            case DetectedActivity.STILL: {
+                txtActivity.setText(String.format(label, "still."));
+                break;
+            }
+            case DetectedActivity.WALKING: {
+                txtActivity.setText(String.format(label, "walking."));
+                break;
+            }
+            default:
+                txtActivity.setText(String.format(label, "Waiting for user activity"));
+                break;
+        }
+
+    }
+
 
     public void updateGeofencesUI() {
         SharedPreferences prefs = getSharedPreferences(getResources().getString(R.string.geofence_prefs_file), MODE_PRIVATE);
@@ -347,6 +401,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         editor.putInt(getResources().getString(R.string.library_visits), libraryVisits);
         editor.apply();
         updateGeofencesUI();
+        LocalBroadcastManager.getInstance(this).registerReceiver(activityUpdateReceiver,
+                new IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY));
     }
 
     @Override
@@ -364,6 +420,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void startLocationUpdates() {
         enableForegroundLocationFeatures(START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE);
+    }
+
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(activityUpdateReceiver);
+    }
+
+    private void startTracking() {
+        Intent intent = new Intent(MainActivity.this, BackgroundActivityRecognition.class);
+        startService(intent);
     }
 
 }
