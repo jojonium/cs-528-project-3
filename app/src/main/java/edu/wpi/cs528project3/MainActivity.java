@@ -142,30 +142,32 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void handleUserActivity(int type, int confidence) {
-        String label = getString(R.string.activity_description);
+        String label = "You are not still, walking, running, or in a car";
 
         switch (type) {
             case DetectedActivity.IN_VEHICLE: {
-                txtActivity.setText(String.format(label, "In a vehicle"));
+                label = "You are in a vehicle";
                 break;
             }
             case DetectedActivity.RUNNING: {
-                txtActivity.setText(String.format(label, "running."));
+                label = "You are running";
                 break;
             }
             case DetectedActivity.STILL: {
-                txtActivity.setText(String.format(label, "still."));
+                label = "You are still";
                 break;
             }
             case DetectedActivity.WALKING: {
-                txtActivity.setText(String.format(label, "walking."));
+                label = "You are walking";
                 break;
             }
             default:
-                txtActivity.setText(String.format(label, "Waiting for user activity"));
+                label = "You are not still, walking, running, or in a car";
                 break;
         }
-
+        if (confidence > Constants.CONFIDENCE) {
+            txtActivity.setText(label);
+        }
     }
 
 
