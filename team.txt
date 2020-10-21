@@ -1,0 +1,8 @@
+acnolan, Nolan, Andrew
+cjmicek, Micek, Chris
+lgangaramaney, Gangaramaney, Lokesh
+jppetitti, Petitti, Joe
+krfortier, Fortier, Kevin
+
+Phone test on: Galaxy A10e smartphone
+Computer tested on: Acer Aspire F5-573G, i7 2.7 GHz, 12GB RAM
