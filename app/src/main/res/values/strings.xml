@@ -26,6 +26,10 @@
     <string name="location_permission_rationale">Location permission required for map and geofence features to function.</string>
     <string name="location_permission_denied">Location permission denied. Location features disabled.</string>
 
+    <string name="activity_permission_required">Permission required for activity recognition</string>
+    <string name="activity_permission_rationale">Permission required for activity recognition features to function.</string>
+    <string name="activity_permission_denied">Activity recognition permission denied. Activity recognition disabled.</string>
+
     <string name="background_location_required">Background location permission required for geofences</string>
     <string name="background_location_rationale">Your background location is required for geofencing to work properly. To enable background location access, please select \"Allow all the time\" in the app location settings.</string>
 </resources>

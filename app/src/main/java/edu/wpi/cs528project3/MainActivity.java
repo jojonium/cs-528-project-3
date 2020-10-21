@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private final int START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE = 3;
     private final int ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE = 4;
     private final int ENABLE_GEOFENCES_BACKGROUND_PERMISSION_REQUEST_CODE = 5;
+    private final int ACTIVITY_RECOGNITION_PERMISSION_REQUEST_CODE = 6;
 
     private final int[] LOCATION_REQUEST_CODES = {GET_LAST_LOCATION_PERMISSION_REQUEST_CODE,
             ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE,
@@ -132,19 +133,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // User Activity Detection
         dbClient = UserActivityDBClient.get(getApplicationContext());
-        activityUpdateReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (intent.getAction().equals(Constants.BROADCAST_DETECTED_ACTIVITY)){
-                    int type = intent.getIntExtra("type", -1);
-                    int confidence = intent.getIntExtra("confidence", 0);
-                    handleUserActivity(new UserActivity(type, confidence));
-                }
-            }
-        };
-
-        startTracking();
-
+        checkActivityRecognitionPermission();
     }
 
     @Override
@@ -351,6 +340,43 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    private void checkActivityRecognitionPermission() {
+        if (Build.VERSION.SDK_INT >= 29) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                    PermissionUtils.requestPermission(this, ACTIVITY_RECOGNITION_PERMISSION_REQUEST_CODE,
+                            Manifest.permission.ACTIVITY_RECOGNITION, false,
+                            R.string.activity_permission_required,
+                            R.string.activity_permission_rationale);
+            } else {
+                setupActivityRecognition();
+            }
+        } else {
+            if (ActivityCompat.checkSelfPermission(this, "com.google.android.gms.permission.ACTIVITY_RECOGNITION") != PackageManager.PERMISSION_GRANTED) {
+                PermissionUtils.requestPermission(this, ACTIVITY_RECOGNITION_PERMISSION_REQUEST_CODE,
+                        "com.google.android.gms.permission.ACTIVITY_RECOGNITION", false,
+                        R.string.activity_permission_required,
+                        R.string.activity_permission_rationale);
+            } else {
+                setupActivityRecognition();
+            }
+        }
+    }
+
+    private void setupActivityRecognition() {
+        activityUpdateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getAction().equals(Constants.BROADCAST_DETECTED_ACTIVITY)){
+                    int type = intent.getIntExtra("type", -1);
+                    int confidence = intent.getIntExtra("confidence", 0);
+                    handleUserActivity(new UserActivity(type, confidence));
+                }
+            }
+        };
+
+        startTracking();
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE ||
@@ -369,6 +395,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             if (PermissionUtils.isPermissionGranted(permissions, grantResults, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     enableBackgroundLocationFeatures(requestCode);
+                }
+            }
+        } else if (requestCode == ACTIVITY_RECOGNITION_PERMISSION_REQUEST_CODE) {
+            if (Build.VERSION.SDK_INT >= 29) {
+                if (PermissionUtils.isPermissionGranted(permissions, grantResults, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+                    checkActivityRecognitionPermission();
+                }
+            } else {
+                if (PermissionUtils.isPermissionGranted(permissions, grantResults, "com.google.android.gms.permission.ACTIVITY_RECOGNITION")) {
+                    checkActivityRecognitionPermission();
                 }
             }
         }
