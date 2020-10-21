@@ -78,6 +78,7 @@ public class BackgroundActivityRecognition extends Service {
                         "Requesting activity updates failed to start",
                         Toast.LENGTH_SHORT)
                         .show();
+
             }
         });
 

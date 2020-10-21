@@ -24,6 +24,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 
@@ -175,9 +176,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         Toast.LENGTH_LONG)
                         .show();
 
-            } else {
-                mPrevActivity = userActivity;
             }
+            mPrevActivity = userActivity;
 
             txtActivity.setText(String.format(activityText, "You are ", ""));
             imgActivity.setImageResource(imageId);
