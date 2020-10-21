@@ -25,12 +25,11 @@ public class ActivityDetectService extends IntentService {
         super.onCreate();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
         ActivityRecognitionResult result = ActivityRecognitionResult.extractResult(intent);
 
-        ArrayList<DetectedActivity> detectedActivities = (ArrayList) result.getProbableActivities();
+        ArrayList<DetectedActivity> detectedActivities = new ArrayList<>(result.getProbableActivities());
 
         for (DetectedActivity activity : detectedActivities) {
             Log.i(TAG, "Detected activity: " + activity.getType() + ", " + activity.getConfidence());

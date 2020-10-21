@@ -70,6 +70,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Geocoder geoCoder;
     private boolean locationPermissionDenied = false;
     MediaPlayer mediaPlayer;
+    boolean playing = false;
 
     private final int GET_LAST_LOCATION_PERMISSION_REQUEST_CODE = 1;
     private final int ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE = 2;
@@ -91,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.activity_main);
 
         // create step counter
-        TextView textStepsCounter = (TextView) this.findViewById(R.id.stepsText);
+        TextView textStepsCounter = this.findViewById(R.id.stepsText);
         SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         String textPattern = getResources().getString(R.string.steps_taken);
         sc = new StepCounter(sensorManager, textStepsCounter, textPattern);
@@ -106,7 +107,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
-        mediaPlayer = MediaPlayer.create(getApplicationContext(), R.raw.beat_02);
+        if (mediaPlayer == null) {
+            mediaPlayer = MediaPlayer.create(getApplicationContext(), R.raw.beat_02);
+        }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         geofencingClient = LocationServices.getGeofencingClient(this);
         enableForegroundLocationFeatures(GET_LAST_LOCATION_PERMISSION_REQUEST_CODE);
@@ -142,48 +145,57 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onDestroy() {
         super.onDestroy();
         unregisterReceiver(geofenceUpdateReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(activityUpdateReceiver);
+        mediaPlayer.stop();
+        mediaPlayer.release();
+        mediaPlayer = null;
     }
 
     private void handleUserActivity(int type, int confidence) {
-        String label = "You are not still, walking, running, or in a car";
-        Integer image = 0;
+        String label;
+        int image = 0;
 
         switch (type) {
             case DetectedActivity.IN_VEHICLE: {
                 label = "You are in a vehicle";
                 image = R.drawable.in_vehicle;
-                mediaPlayer.stop();
                 break;
             }
             case DetectedActivity.RUNNING: {
                 label = "You are running";
                 image = R.drawable.running;
-                mediaPlayer.start();
                 break;
             }
             case DetectedActivity.STILL: {
                 label = "You are still";
                 image = R.drawable.still;
-                mediaPlayer.stop();
                 break;
             }
             case DetectedActivity.WALKING: {
                 label = "You are walking";
                 image = R.drawable.walking;
-                mediaPlayer.start();
                 break;
             }
             default:
                 label = "You are not still, walking, running, or in a car";
-                mediaPlayer.stop();
                 break;
         }
         if (confidence > Constants.CONFIDENCE) {
             txtActivity.setText(label);
             imgActivity.setImageResource(image);
+            if (type == DetectedActivity.WALKING || type == DetectedActivity.RUNNING) {
+                if (!playing) {
+                    playing = true;
+                    mediaPlayer.start();
+                }
+            } else {
+                if (playing) {
+                    playing = false;
+                    mediaPlayer.stop();
+                }
+            }
         }
     }
-
 
     public void updateGeofencesUI() {
         SharedPreferences prefs = getSharedPreferences(getResources().getString(R.string.geofence_prefs_file), MODE_PRIVATE);
@@ -234,14 +246,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         Looper.getMainLooper());
             } else if (requestCode == GET_LAST_LOCATION_PERMISSION_REQUEST_CODE) {
                 fusedLocationClient.getLastLocation()
-                        .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                            @Override
-                            public void onSuccess(Location location) {
-                                // Got last known location. In some rare situations this can be null.
-                                if (location != null) {
-                                    // Logic to handle location object
-                                    mCurrentLocation = location;
-                                }
+                        .addOnSuccessListener(this, location -> {
+                            // Got last known location. In some rare situations this can be null.
+                            if (location != null) {
+                                // Logic to handle location object
+                                mCurrentLocation = location;
                             }
                         });
             } else if (requestCode == ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE) {
@@ -393,7 +402,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void updateMap(Location location) {
         LatLng curLocation = new LatLng(location.getLatitude(), location.getLongitude());
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(curLocation, defaultZoom));
-        String bestMatch = "";
+        String bestMatch;
         try {
             List<Address> matches = geoCoder.getFromLocation(curLocation.latitude, curLocation.longitude, 1);
             bestMatch = (matches.isEmpty() ? "Unknown" : matches.get(0).getAddressLine(0));
@@ -436,16 +445,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void startLocationUpdates() {
         enableForegroundLocationFeatures(START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE);
-    }
-
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(activityUpdateReceiver);
-        mediaPlayer.stop();
-        mediaPlayer.release();
     }
 
     private void startTracking() {
