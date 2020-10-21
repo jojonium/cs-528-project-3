@@ -11,9 +11,11 @@ import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.hardware.SensorManager;
 
@@ -21,8 +23,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 
+import com.google.android.gms.location.DetectedActivity;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingClient;
@@ -42,6 +46,8 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
+    private String TAG = MainActivity.class.getSimpleName();
+
     private StepCounter sc;
 
     private GoogleMap mMap;
@@ -59,10 +65,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private final float defaultZoom = 16;
     private final float geofenceRadius = 30;
     private final int dwellTime = 15000;
+    private BroadcastReceiver activityUpdateReceiver;
     private BroadcastReceiver geofenceUpdateReceiver;
     private Geocoder geoCoder;
-
     private boolean locationPermissionDenied = false;
+    MediaPlayer mediaPlayer;
+    boolean playing = false;
 
     private final int GET_LAST_LOCATION_PERMISSION_REQUEST_CODE = 1;
     private final int ENABLE_MY_LOCATION_PERMISSION_REQUEST_CODE = 2;
@@ -75,22 +83,32 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE,
             ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE};
 
+    private TextView txtActivity;
+    private ImageView imgActivity;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         // create step counter
-        TextView textStepsCounter = (TextView) this.findViewById(R.id.stepsText);
+        TextView textStepsCounter = this.findViewById(R.id.stepsText);
         SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         String textPattern = getResources().getString(R.string.steps_taken);
         sc = new StepCounter(sensorManager, textStepsCounter, textPattern);
+
+        txtActivity = findViewById(R.id.activityDescription);
+        imgActivity = findViewById(R.id.activityImage);
+
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
+        }
+        if (mediaPlayer == null) {
+            mediaPlayer = MediaPlayer.create(getApplicationContext(), R.raw.beat_02);
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         geofencingClient = LocationServices.getGeofencingClient(this);
@@ -107,12 +125,76 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 updateMap(mCurrentLocation);
             }
         };
+
+        activityUpdateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getAction().equals(Constants.BROADCAST_DETECTED_ACTIVITY)){
+                    int type = intent.getIntExtra("type", -1);
+                    int confidence = intent.getIntExtra("confidence", 0);
+                    handleUserActivity(type, confidence);
+                }
+            }
+        };
+
+        startTracking();
+
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         unregisterReceiver(geofenceUpdateReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(activityUpdateReceiver);
+        mediaPlayer.stop();
+        mediaPlayer.release();
+        mediaPlayer = null;
+    }
+
+    private void handleUserActivity(int type, int confidence) {
+        String label;
+        int image = 0;
+
+        switch (type) {
+            case DetectedActivity.IN_VEHICLE: {
+                label = "You are in a vehicle";
+                image = R.drawable.in_vehicle;
+                break;
+            }
+            case DetectedActivity.RUNNING: {
+                label = "You are running";
+                image = R.drawable.running;
+                break;
+            }
+            case DetectedActivity.STILL: {
+                label = "You are still";
+                image = R.drawable.still;
+                break;
+            }
+            case DetectedActivity.WALKING: {
+                label = "You are walking";
+                image = R.drawable.walking;
+                break;
+            }
+            default:
+                label = "You are not still, walking, running, or in a car";
+                break;
+        }
+        if (confidence > Constants.CONFIDENCE) {
+            txtActivity.setText(label);
+            imgActivity.setImageResource(image);
+            if (type == DetectedActivity.WALKING || type == DetectedActivity.RUNNING) {
+                if (!playing) {
+                    playing = true;
+                    mediaPlayer.start();
+                }
+            } else {
+                if (playing) {
+                    playing = false;
+                    mediaPlayer.stop();
+                }
+            }
+        }
     }
 
     public void updateGeofencesUI() {
@@ -164,14 +246,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         Looper.getMainLooper());
             } else if (requestCode == GET_LAST_LOCATION_PERMISSION_REQUEST_CODE) {
                 fusedLocationClient.getLastLocation()
-                        .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                            @Override
-                            public void onSuccess(Location location) {
-                                // Got last known location. In some rare situations this can be null.
-                                if (location != null) {
-                                    // Logic to handle location object
-                                    mCurrentLocation = location;
-                                }
+                        .addOnSuccessListener(this, location -> {
+                            // Got last known location. In some rare situations this can be null.
+                            if (location != null) {
+                                // Logic to handle location object
+                                mCurrentLocation = location;
                             }
                         });
             } else if (requestCode == ENABLE_GEOFENCES_FOREGROUND_PERMISSION_REQUEST_CODE) {
@@ -323,7 +402,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void updateMap(Location location) {
         LatLng curLocation = new LatLng(location.getLatitude(), location.getLongitude());
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(curLocation, defaultZoom));
-        String bestMatch = "";
+        String bestMatch;
         try {
             List<Address> matches = geoCoder.getFromLocation(curLocation.latitude, curLocation.longitude, 1);
             bestMatch = (matches.isEmpty() ? "Unknown" : matches.get(0).getAddressLine(0));
@@ -347,6 +426,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         editor.putInt(getResources().getString(R.string.library_visits), libraryVisits);
         editor.apply();
         updateGeofencesUI();
+        LocalBroadcastManager.getInstance(this).registerReceiver(activityUpdateReceiver,
+                new IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY));
     }
 
     @Override
@@ -364,6 +445,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void startLocationUpdates() {
         enableForegroundLocationFeatures(START_LOCATION_UPDATES_PERMISSION_REQUEST_CODE);
+    }
+
+    private void startTracking() {
+        Intent intent = new Intent(MainActivity.this, BackgroundActivityRecognition.class);
+        startService(intent);
     }
 
 }
