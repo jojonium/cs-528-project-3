@@ -50,6 +50,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private StepCounter sc;
 
+    private UserActivityDBClient dbClient;
+
     private GoogleMap mMap;
     private Location mCurrentLocation;
     private FusedLocationProviderClient fusedLocationClient;
@@ -126,13 +128,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         };
 
+        // User Activity Detection
+        dbClient = UserActivityDBClient.get(getApplicationContext());
         activityUpdateReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (intent.getAction().equals(Constants.BROADCAST_DETECTED_ACTIVITY)){
                     int type = intent.getIntExtra("type", -1);
                     int confidence = intent.getIntExtra("confidence", 0);
-                    handleUserActivity(type, confidence);
+                    handleUserActivity(new UserActivity(type, confidence));
                 }
             }
         };
@@ -151,39 +155,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mediaPlayer = null;
     }
 
-    private void handleUserActivity(int type, int confidence) {
-        String label;
-        int image = 0;
+    private void handleUserActivity(UserActivity userActivity) {
+        dbClient.addUserActivity(userActivity);
+        String activityString = userActivity.getActivityString();
+        String label = "You are " + activityString;
+        System.out.println(label);
+        int image = getResources().getIdentifier(activityString, "drawable", getPackageName());
 
-        switch (type) {
-            case DetectedActivity.IN_VEHICLE: {
-                label = "You are in a vehicle";
-                image = R.drawable.in_vehicle;
-                break;
-            }
-            case DetectedActivity.RUNNING: {
-                label = "You are running";
-                image = R.drawable.running;
-                break;
-            }
-            case DetectedActivity.STILL: {
-                label = "You are still";
-                image = R.drawable.still;
-                break;
-            }
-            case DetectedActivity.WALKING: {
-                label = "You are walking";
-                image = R.drawable.walking;
-                break;
-            }
-            default:
-                label = "You are not still, walking, running, or in a car";
-                break;
-        }
-        if (confidence > Constants.CONFIDENCE) {
+        if (userActivity.getConfidence() > Constants.CONFIDENCE) {
             txtActivity.setText(label);
             imgActivity.setImageResource(image);
-            if (type == DetectedActivity.WALKING || type == DetectedActivity.RUNNING) {
+            if (userActivity.getType() == DetectedActivity.WALKING || userActivity.getType() == DetectedActivity.RUNNING) {
                 if (!playing) {
                     playing = true;
                     mediaPlayer.start();
