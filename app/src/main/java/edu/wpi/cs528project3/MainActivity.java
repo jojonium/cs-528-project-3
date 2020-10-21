@@ -18,6 +18,7 @@ import android.os.Looper;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.hardware.SensorManager;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -40,7 +41,6 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.List;
 
@@ -51,6 +51,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private StepCounter sc;
 
     private UserActivityDBClient dbClient;
+    private UserActivity mPrevActivity;
 
     private GoogleMap mMap;
     private Location mCurrentLocation;
@@ -156,13 +157,29 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void handleUserActivity(UserActivity userActivity) {
-        dbClient.addUserActivity(userActivity);
 
         int labelId = getResources().getIdentifier(userActivity.getActivityString(), "string", getPackageName());
+        String activityText = getResources().getString(labelId);
         int imageId = getResources().getIdentifier(userActivity.getActivityString(), "drawable", getPackageName());
 
         if (userActivity.getConfidence() > Constants.CONFIDENCE) {
-            txtActivity.setText(labelId);
+            dbClient.addUserActivity(userActivity);
+
+            if (mPrevActivity != null && mPrevActivity.getType() != userActivity.getType()){
+                int prevLabelId = getResources().getIdentifier(mPrevActivity.getActivityString(), "string", getPackageName());
+                String prevActivityText = getResources().getString(prevLabelId);
+
+                String totalActivityTime = mPrevActivity.getTotalTimeString(userActivity.getTimestamp());
+                Toast.makeText(getApplicationContext(),
+                        String.format(prevActivityText, "You were ", " for " + totalActivityTime),
+                        Toast.LENGTH_LONG)
+                        .show();
+
+            } else {
+                mPrevActivity = userActivity;
+            }
+
+            txtActivity.setText(String.format(activityText, "You are ", ""));
             imgActivity.setImageResource(imageId);
             if (userActivity.getType() == DetectedActivity.WALKING || userActivity.getType() == DetectedActivity.RUNNING) {
                 if (!playing) {

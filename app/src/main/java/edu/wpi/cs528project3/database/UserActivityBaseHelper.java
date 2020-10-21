@@ -17,7 +17,8 @@ public class UserActivityBaseHelper extends SQLiteOpenHelper {
                 " _id integer primary key autoincrement, " +
                 UserActivityDbSchema.UserActivityTable.Cols.UUID + ", " +
                 UserActivityDbSchema.UserActivityTable.Cols.TITLE + ", " +
-                UserActivityDbSchema.UserActivityTable.Cols.TIME +
+                UserActivityDbSchema.UserActivityTable.Cols.TIME + ", " +
+                UserActivityDbSchema.UserActivityTable.Cols.TIMESTAMP +
                 ")"
         );
     }

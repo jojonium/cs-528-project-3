@@ -60,6 +60,8 @@ public class UserActivityDBClient {
         values.put(UserActivityDbSchema.UserActivityTable.Cols.UUID, activity.getId().toString());
         values.put(UserActivityDbSchema.UserActivityTable.Cols.TITLE, activity.getActivityString());
         values.put(UserActivityDbSchema.UserActivityTable.Cols.TIME, activity.getTime());
+        values.put(UserActivityDbSchema.UserActivityTable.Cols.TIMESTAMP, activity.getTimestamp());
+
         System.out.println(values);
         return values;
     }

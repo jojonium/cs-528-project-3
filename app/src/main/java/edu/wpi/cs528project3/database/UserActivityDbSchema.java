@@ -8,6 +8,7 @@ public class UserActivityDbSchema {
             public static final String UUID = "uuid";
             public static final String TITLE = "title";
             public static final String TIME = "time";
+            public static final String TIMESTAMP = "timestamp";
         }
     }
 }

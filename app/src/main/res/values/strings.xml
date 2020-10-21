@@ -8,11 +8,11 @@
 
     <string name="activity_image_description">Image showing an illustration of the current activity</string>
 
-    <string name="running">You are running</string>
-    <string name="still">You are still</string>
-    <string name="unknown_activity">You are performing an unknown activity</string>
-    <string name="in_vehicle">You are in a vehicle</string>
-    <string name="walking">You are walking</string>
+    <string name="running">%s running%s</string>
+    <string name="still">%s still%s</string>
+    <string name="unknown_activity">%s performing an unknown activity%s</string>
+    <string name="in_vehicle">%s in a vehicle%s</string>
+    <string name="walking">%s walking%s</string>
 
     <string name="fuller_visits">fuller_visits</string>
     <string name="library_visits">library_visits</string>
