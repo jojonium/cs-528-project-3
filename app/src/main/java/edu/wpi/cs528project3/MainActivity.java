@@ -157,14 +157,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void handleUserActivity(UserActivity userActivity) {
         dbClient.addUserActivity(userActivity);
-        String activityString = userActivity.getActivityString();
-        String label = "You are " + activityString;
-        System.out.println(label);
-        int image = getResources().getIdentifier(activityString, "drawable", getPackageName());
+
+        int labelId = getResources().getIdentifier(userActivity.getActivityString(), "string", getPackageName());
+        int imageId = getResources().getIdentifier(userActivity.getActivityString(), "drawable", getPackageName());
 
         if (userActivity.getConfidence() > Constants.CONFIDENCE) {
-            txtActivity.setText(label);
-            imgActivity.setImageResource(image);
+            txtActivity.setText(labelId);
+            imgActivity.setImageResource(imageId);
             if (userActivity.getType() == DetectedActivity.WALKING || userActivity.getType() == DetectedActivity.RUNNING) {
                 if (!playing) {
                     playing = true;

@@ -39,7 +39,7 @@ public class UserActivity extends DetectedActivity{
                 return "walking";
             }
             default:
-                return "unknown";
+                return "unknown_activity";
         }
     }
 
