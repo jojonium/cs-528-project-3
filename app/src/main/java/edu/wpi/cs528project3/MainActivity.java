@@ -152,7 +152,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             case DetectedActivity.IN_VEHICLE: {
                 label = "You are in a vehicle";
                 image = R.drawable.in_vehicle;
-                mediaPlayer.stop();cv 
+                mediaPlayer.stop();
                 break;
             }
             case DetectedActivity.RUNNING: {
