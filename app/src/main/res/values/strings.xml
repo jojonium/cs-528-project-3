@@ -8,6 +8,12 @@
 
     <string name="activity_image_description">Image showing an illustration of the current activity</string>
 
+    <string name="running">%s running%s</string>
+    <string name="still">%s still%s</string>
+    <string name="unknown_activity">%s performing an unknown activity%s</string>
+    <string name="in_vehicle">%s in a vehicle%s</string>
+    <string name="walking">%s walking%s</string>
+
     <string name="fuller_visits">fuller_visits</string>
     <string name="library_visits">library_visits</string>
     <string name="geofence_prefs_file">GEOFENCE_PREFS</string>

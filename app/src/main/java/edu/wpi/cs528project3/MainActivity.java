@@ -18,6 +18,7 @@ import android.os.Looper;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.hardware.SensorManager;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -40,7 +41,6 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.List;
 
@@ -49,6 +49,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private String TAG = MainActivity.class.getSimpleName();
 
     private StepCounter sc;
+
+    private UserActivityDBClient dbClient;
+    private UserActivity mPrevActivity;
 
     private GoogleMap mMap;
     private Location mCurrentLocation;
@@ -126,13 +129,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         };
 
+        // User Activity Detection
+        dbClient = UserActivityDBClient.get(getApplicationContext());
         activityUpdateReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (intent.getAction().equals(Constants.BROADCAST_DETECTED_ACTIVITY)){
                     int type = intent.getIntExtra("type", -1);
                     int confidence = intent.getIntExtra("confidence", 0);
-                    handleUserActivity(type, confidence);
+                    handleUserActivity(new UserActivity(type, confidence));
                 }
             }
         };
@@ -151,39 +156,32 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mediaPlayer = null;
     }
 
-    private void handleUserActivity(int type, int confidence) {
-        String label;
-        int image = 0;
+    private void handleUserActivity(UserActivity userActivity) {
 
-        switch (type) {
-            case DetectedActivity.IN_VEHICLE: {
-                label = "You are in a vehicle";
-                image = R.drawable.in_vehicle;
-                break;
+        int labelId = getResources().getIdentifier(userActivity.getActivityString(), "string", getPackageName());
+        String activityText = getResources().getString(labelId);
+        int imageId = getResources().getIdentifier(userActivity.getActivityString(), "drawable", getPackageName());
+
+        if (userActivity.getConfidence() > Constants.CONFIDENCE) {
+            dbClient.addUserActivity(userActivity);
+
+            if (mPrevActivity != null && mPrevActivity.getType() != userActivity.getType()){
+                int prevLabelId = getResources().getIdentifier(mPrevActivity.getActivityString(), "string", getPackageName());
+                String prevActivityText = getResources().getString(prevLabelId);
+
+                String totalActivityTime = mPrevActivity.getTotalTimeString(userActivity.getTimestamp());
+                Toast.makeText(getApplicationContext(),
+                        String.format(prevActivityText, "You were ", " for " + totalActivityTime),
+                        Toast.LENGTH_LONG)
+                        .show();
+
+            } else {
+                mPrevActivity = userActivity;
             }
-            case DetectedActivity.RUNNING: {
-                label = "You are running";
-                image = R.drawable.running;
-                break;
-            }
-            case DetectedActivity.STILL: {
-                label = "You are still";
-                image = R.drawable.still;
-                break;
-            }
-            case DetectedActivity.WALKING: {
-                label = "You are walking";
-                image = R.drawable.walking;
-                break;
-            }
-            default:
-                label = "You are not still, walking, running, or in a car";
-                break;
-        }
-        if (confidence > Constants.CONFIDENCE) {
-            txtActivity.setText(label);
-            imgActivity.setImageResource(image);
-            if (type == DetectedActivity.WALKING || type == DetectedActivity.RUNNING) {
+
+            txtActivity.setText(String.format(activityText, "You are ", ""));
+            imgActivity.setImageResource(imageId);
+            if (userActivity.getType() == DetectedActivity.WALKING || userActivity.getType() == DetectedActivity.RUNNING) {
                 if (!playing) {
                     playing = true;
                     mediaPlayer.start();
