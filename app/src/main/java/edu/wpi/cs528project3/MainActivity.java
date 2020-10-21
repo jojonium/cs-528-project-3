@@ -152,6 +152,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             case DetectedActivity.IN_VEHICLE: {
                 label = "You are in a vehicle";
                 image = R.drawable.in_vehicle;
+                mediaPlayer.stop();cv 
                 break;
             }
             case DetectedActivity.RUNNING: {
@@ -163,6 +164,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             case DetectedActivity.STILL: {
                 label = "You are still";
                 image = R.drawable.still;
+                mediaPlayer.stop();
                 break;
             }
             case DetectedActivity.WALKING: {
@@ -173,6 +175,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
             default:
                 label = "You are not still, walking, running, or in a car";
+                mediaPlayer.stop();
                 break;
         }
         if (confidence > Constants.CONFIDENCE) {
